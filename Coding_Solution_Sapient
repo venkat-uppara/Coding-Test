@@ -1,0 +1,193 @@
+-------------------------------------------------------------------------------------------------------------------------------------------
+QUESTION -1 (General Coding)
+--------------------------------------------------------------------------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS PERSON_DEATILS
+(
+    NAME STRING,
+    AGE INT,
+    LOCATION STRING
+)
+ROW FORMAT DELIMITED 
+FIELDS TERMINATED BY '\t'
+STORED AS TEXTFILE;
+
+------------------------------------------------------------------------------------------------
+INSERT INTO PERSON_DEATILS VALUES('Rajesh',21,'London');
+INSERT INTO PERSON_DEATILS VALUES('Suresh',28,'California');
+INSERT INTO PERSON_DEATILS VALUES('Sam',26,'Delhi');
+INSERT INTO PERSON_DEATILS VALUES('Rajesh',21,'Gurgaon');
+INSERT INTO PERSON_DEATILS VALUES('Manish',29,'Bengaluru');
+_________________________________________________________________________________________________
+
+Problem Statment : Remove duplicates on the combination of Name and Age and print results. 
+-----------------------------------------------------------------------------------------
+
+Hive-SQL :
+
+select Name,Age,Location from ( select Name,Age,Location, row_number() over(partition by NAME,AGE order by Location) Row_Num from PERSON_DEATILS ) where Row_Num=1;
+
+select Name,Age,max(Location) Location  from PERSON_DEATILS  group by Name,Age ; 
+
+--------------------------------------------------------------------------------------------------------------------------------------------------------- 
+
+Java Program :
+------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+package com.java.interview;
+import java.util.*;
+
+public class RemoveDuplicatePerson {
+
+    public  static void main(String[] args){
+
+        final ArrayList person = new ArrayList();
+
+        person.add(new Person("Rajesh ",21, "London"));
+        person.add(new Person("Suresh",28, "California"));
+        person.add(new Person("Sam", 26,"Delhi"));
+        person.add(new Person("Rajesh ",21, "Gurgaon"));
+        person.add(new Person("Manish",29, "Bengaluru"));
+
+       System.out.println(person);
+
+        Set set = new HashSet(person);
+
+        set.addAll(person);
+
+       System.out.println(" After removing duplicates ");
+
+        final ArrayList newList = new ArrayList(set);
+
+        // Print original list
+      System.out.println(newList);
+    }
+
+}
+
+class Person {
+
+    private String name;
+    private int age;
+    private String location;
+
+    public Person(String name, int age, String location) {
+        this.name = name;
+        this.age = age;
+        this.location = location;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (!(o instanceof Person)) return false;
+        Person person = (Person) o;
+        return getAge() == person.getAge() &&
+                Objects.equals(getName(), person.getName());
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(getName(), getAge());
+    }
+
+    @Override
+    public String toString() {
+        return "Person{" +
+                "name='" + name + '\'' +
+                ", age=" + age +
+                ", location='" + location + '\'' +
+                '}';
+    }
+
+    public String getName() {
+        return name;
+    }
+
+    public void setName(String name) {
+        this.name = name;
+    }
+
+    public int getAge() {
+        return age;
+    }
+
+    public void setAge(int age) {
+        this.age = age;
+    }
+
+    public String getLocation() {
+        return location;
+    }
+
+    public void setLocation(String location) {
+        this.location = location;
+    }
+}
+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+QUESTION - 2 : Given a time series data which is a clickstream of user activity is stored in hive, ask is to enrich the data with session id.
+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS clickstream (
+   clicktimestamp STRING,
+   user_id STRING
+) ROW FORMAT DELIMITED FIELDS TERMINATED BY ','
+STORED AS ORC
+TBLPROPERTIES ("orc.compress"="SNAPPY"
+); 
+------------------------------------------------------------------------------------------------------
+INSERT INTO clickstream VALUES('2018-01-01T11:00:00.000Z','u1');
+INSERT INTO clickstream VALUES('2018-01-01T12:00:00.000Z','u1');
+INSERT INTO clickstream VALUES('2018-01-01T11:00:00.000Z','u2');
+INSERT INTO clickstream VALUES('2018-01-02T11:00:00.000Z','u2');
+INSERT INTO clickstream VALUES('2018-01-01T12:15:00.000Z','u1');
+------------------------------------------------------------------------------------------------------
+Spark-shell 
+--------------------
+
+ spark-shell --master yarn --jars /usr/hdp/current/hive_warehouse_connector/hive-warehouse-connector-assembly-*.jar --conf spark.security.credentials.hiveserver2.enabled=false
+
+ Scala> import com.hortonworks.hwc.HiveWarehouseSession ;
+ 
+ Scala> val hivesession= HiveWarehouseSession.session(spark).build()
+
+ Scala> val df = hivesession.execute("select * from clickstream")
+ 
+      df.write.parquet("/tmp/clickstream.parquet")
+ 
+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- 
+                                
+QUESTION 3
+In addition to the problem statement given in question 2 assume below scenario as well and design hive table based on it:
+•	Get Number of sessions generated in a day.
+•	Total time spent by a user in a day 
+•	Total time spent by a user over a month.
+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS clicksStream_final (
+    user_id STRING,
+    click_time  String
+    session_num STRING,
+    dailyTimeSpent STRING,
+    monthlyTimeSpent String,
+    userYYYYMMDD Int
+) partitioned by (userYYYYMM  int)
+Clustred by (userYYYYMMDD) into 4 bucktes 
+row format delimited 
+fields terminated by '~'
+STORED AS ORC
+TBLPROPERTIES ("orc.compress"="SNAPPY"
+); 
+------------------------------------------------------------------------------------------------------------------
+
+Output: 
+
++-------+-------------------+-----------+------------+----------+--------------+----------------+
+|user_id|         click_time|session_num|userYYYYMMDD|userYYYYMM|dailyTimeSpent|monthlyTimeSpent|
++-------+-------------------+-----------+------------+----------+--------------+----------------+
+|     u1|2018-01-01 16:30:00|          1|  2018-01-01|   2018-01|             6|               8|
+|     u1|2018-01-01 17:30:00|          2|  2018-01-01|   2018-01|             6|               8|
+|     u1|2018-01-01 17:45:00|          2|  2018-01-01|   2018-01|             6|               8|
+|     u2|2018-01-01 16:30:00|          1|  2018-01-01|   2018-01|             6|               8|
+|     u2|2018-01-02 16:30:00|          2|  2018-01-02|   2018-01|             2|               8|
++-------+-------------------+-----------+------------+----------+--------------+----------------+
+-------------------------------------------------------------------------------------------------------------------------------------------------------
+
+
